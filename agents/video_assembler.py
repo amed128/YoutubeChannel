@@ -60,7 +60,8 @@ class VideoAssemblerAgent:
             audio = audio.subclipped(0, video.duration)
         video = video.with_audio(audio)
 
-        safe_title = "".join(c if c.isalnum() or c in " _-" else "_" for c in script["title"])
+        raw_title = script.get("viral_titles", ["video"])[0] if "viral_titles" in script else script.get("title", "video")
+        safe_title = "".join(c if c.isalnum() or c in " _-" else "_" for c in raw_title)
         out_path = output_dir / f"{safe_title[:60]}.mp4"
         print(f"[VideoAssembler] Rendering → {out_path}")
         video.write_videofile(
