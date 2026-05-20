@@ -2,11 +2,11 @@
 
 ## Planned Features
 
-- [ ] **Thumbnail generator** — 5th sub-agent that feeds `thumbnail_concept` (already in script JSON) to DALL-E 3 and exports a ready-to-upload `thumbnail.png` alongside the MP4.
+- [x] **Thumbnail generator** — 5th sub-agent that feeds `thumbnail_concept` (already in script JSON) to DALL-E 3 and exports a ready-to-upload `thumbnail.png` alongside the MP4.
 
 - [ ] **YouTube upload agent** — 6th sub-agent using YouTube Data API v3 to upload the MP4, set title (`viral_titles[0]`), description, tags, and thumbnail automatically.
 
-- [ ] **`--dry-run` / script preview mode** — CLI flag that stops after `ScriptWriterAgent`, prints the 3 viral titles + scene breakdown, and skips TTS + DALL-E to allow fast prompt iteration without API cost.
+- [x] **`--dry-run` / script preview mode** — CLI flag that stops after `ScriptWriterAgent`, prints the 3 viral titles + scene breakdown, and skips TTS + DALL-E to allow fast prompt iteration without API cost.
 
 - [ ] **Retry & resilience** — Exponential back-off on DALL-E and TTS API calls so a transient rate-limit error doesn't abort the whole run mid-way.
 

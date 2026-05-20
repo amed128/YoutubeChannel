@@ -11,10 +11,11 @@ Steps:
 
 import os
 import textwrap
+from io import BytesIO
 from pathlib import Path
 
-import openai
-import requests
+from google import genai
+from google.genai import types
 from moviepy import (
     AudioFileClip,
     CompositeVideoClip,
@@ -29,15 +30,14 @@ FONT_SIZE = 42
 FONT_COLOR = "white"
 FONT = "DejaVu-Sans-Bold"
 SUBTITLE_WRAP = 70          # chars per subtitle line
-DALLE_MODEL = "dall-e-3"
-DALLE_SIZE = "1792x1024"    # closest DALL-E 3 size to 16:9
+IMAGEN_MODEL = "imagen-3.0-generate-002"
 
 
 class VideoAssemblerAgent:
     """Generates images and assembles the final MP4."""
 
     def __init__(self) -> None:
-        self.client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        self.client = genai.Client(api_key=os.environ["GOOGLE_API_KEY"])
 
     def run(self, script: dict, audio_path: Path, output_dir: Path) -> Path:
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -85,21 +85,17 @@ class VideoAssemblerAgent:
 
         prompt = (
             f"{scene['visual_prompt']} "
-            "Photorealistic, cinematic lighting, 16:9 aspect ratio, "
-            "high quality, no text overlays."
+            "Photorealistic, cinematic lighting, high quality, no text overlays."
         )
-        response = self.client.images.generate(
-            model=DALLE_MODEL,
+        response = self.client.models.generate_images(
+            model=IMAGEN_MODEL,
             prompt=prompt[:1000],
-            size=DALLE_SIZE,
-            quality="standard",
-            n=1,
+            config=types.GenerateImagesConfig(
+                number_of_images=1,
+                aspect_ratio="16:9",
+            ),
         )
-        image_url = response.data[0].url
-        img_bytes = requests.get(image_url, timeout=30).content  # type: ignore[arg-type]
-
-        # Convert to exact VIDEO_SIZE PNG
-        from io import BytesIO
+        img_bytes = response.generated_images[0].image.image_bytes
         img = Image.open(BytesIO(img_bytes)).convert("RGB")
         img = img.resize(VIDEO_SIZE, Image.LANCZOS)
         img.save(str(img_path), "PNG")

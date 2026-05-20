@@ -2,45 +2,23 @@
 Sub-agent: Generates voiceover audio from the script narration.
 Priority:
   1. User-provided audio file path (--audio flag) — used as-is.
-  2. OpenAI TTS API — synthesizes speech scene by scene, then concatenates.
+  2. edge-tts — free Microsoft Azure neural voices, runs locally, no API key.
 """
 
-import os
-import struct
-import wave
+import asyncio
 from pathlib import Path
 
-import openai
+import edge_tts
 
-
-VOICE = "onyx"          # Options: alloy, echo, fable, onyx, nova, shimmer
-TTS_MODEL = "tts-1-hd"
-
-
-def _concatenate_wav_bytes(wav_chunks: list[bytes]) -> bytes:
-    """Merge multiple WAV byte blobs into a single WAV blob."""
-    frames_list: list[bytes] = []
-    params: tuple | None = None
-
-    for chunk in wav_chunks:
-        with wave.open(__import__("io").BytesIO(chunk)) as wf:
-            if params is None:
-                params = wf.getparams()
-            frames_list.append(wf.readframes(wf.getnframes()))
-
-    buf = __import__("io").BytesIO()
-    with wave.open(buf, "wb") as wf:
-        wf.setparams(params)  # type: ignore[arg-type]
-        for frames in frames_list:
-            wf.writeframes(frames)
-    return buf.getvalue()
+# Good neutral Spanish voices (no regional accent preference):
+# es-MX-JorgeNeural    — Mexican Spanish, male
+# es-ES-AlvaroNeural   — Spain Spanish, male
+# es-CO-GonzaloNeural  — Colombian Spanish, male
+VOICE = "es-MX-JorgeNeural"
 
 
 class VoiceoverAgent:
     """Generates or passes through the audio track for the video."""
-
-    def __init__(self) -> None:
-        self.client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
     def run(
         self,
@@ -55,18 +33,16 @@ class VoiceoverAgent:
             print(f"[Voiceover] Using provided audio: {src}")
             return src
 
-        print("[Voiceover] Synthesizing speech with OpenAI TTS...")
+        print(f"[Voiceover] Synthesizing speech with edge-tts (voice: {VOICE})...")
         output_dir.mkdir(parents=True, exist_ok=True)
         full_narration = " ".join(s["narration"] for s in script["scenes"])
         audio_path = output_dir / "voiceover.mp3"
 
-        # Single API call — concatenated narration is simpler and cheaper
-        response = self.client.audio.speech.create(
-            model=TTS_MODEL,
-            voice=VOICE,
-            input=full_narration,
-            response_format="mp3",
-        )
-        audio_path.write_bytes(response.content)
+        asyncio.run(self._synthesize(full_narration, audio_path))
         print(f"[Voiceover] Audio saved → {audio_path}")
         return audio_path
+
+    @staticmethod
+    async def _synthesize(text: str, output_path: Path) -> None:
+        communicate = edge_tts.Communicate(text, VOICE)
+        await communicate.save(str(output_path))
